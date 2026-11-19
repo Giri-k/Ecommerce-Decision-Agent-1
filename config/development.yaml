@@ -1,0 +1,48 @@
+# Working defaults for development; final experiment assumptions remain unfrozen.
+schema_version: "0.1.0"
+status: development
+model:
+  provider: openai
+  model_id: gpt-5-nano
+  embedding_model_id: text-embedding-3-small
+  embeddings_enabled: false
+  monthly_budget_cents: 2500
+  reserve_cents: 500
+  max_model_calls: 6
+  max_input_tokens: 18000
+  # Includes billed reasoning tokens, not just visible text.
+  max_output_tokens: 3000
+  max_tool_calls: 12
+  max_compare_calls: 3
+  max_wall_seconds: 90
+operating:
+  currency: USD
+  initial_cash_cents: 200000
+  order_fee_cents: 500
+  case_pack: 5
+  minimum_order_units: 5
+  maximum_order_units: 200
+  minimum_price_percent: 90
+  maximum_price_percent: 110
+  minimum_gross_margin_percent: 20
+  price_cooldown_days: 3
+simulation:
+  episode_days: 14
+  continuation_days: 14
+  review_days: [1, 4, 7, 10]
+  demand_dispersion: "10"
+  daily_holding_rate: "0.001"
+  elasticity_min: "-2.0"
+  elasticity_max: "-0.5"
+  initial_inventory_days_min: 7
+  initial_inventory_days_max: 21
+  unit_cost_percent_min: 50
+  unit_cost_percent_max: 70
+planning:
+  forecast_model: weekday_mean_4
+  rollout_count: 20
+  planning_seed: 41017
+  horizon: 14
+  central_elasticity: "-1.0"
+  sensitivity_elasticity_min: "-2.0"
+  sensitivity_elasticity_max: "-0.5"

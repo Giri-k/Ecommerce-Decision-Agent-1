@@ -1,0 +1,44 @@
+[build-system]
+requires = ["hatchling>=1.27,<2"]
+build-backend = "hatchling.build"
+
+[project]
+name = "ecommerce-decision-agent"
+version = "0.1.0"
+description = "A course sandbox for evidence-backed merchant decisions"
+readme = "README.md"
+requires-python = ">=3.11,<3.14"
+dependencies = [
+    "fastapi>=0.115,<1",
+    "psycopg[binary]>=3.2,<4",
+    "pydantic>=2.10,<3",
+    "python-dotenv>=1.1,<2",
+    "pyyaml>=6,<7",
+    "uvicorn>=0.34,<1",
+]
+
+[project.scripts]
+ecommerce-agent = "ecommerce_agent.cli:main"
+
+[dependency-groups]
+dev = [
+    "embedded-postgres>=18.6.3,<19",
+    "httpx>=0.28,<1",
+    "pytest>=8,<10",
+    "ruff>=0.11,<1",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/ecommerce_agent"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+extend-exclude = [".cache", ".venv", "var"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]

@@ -1,0 +1,23 @@
+.venv/
+.cache/
+.pytest_cache/
+.ruff_cache/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.DS_Store
+.env
+.env.*
+!.env.example
+var/
+dist/
+node_modules/
+data/raw/*
+!data/raw/README.md
+!data/raw/SHA256SUMS
+
+# Local course material and generated presentation assets are not part of the app.
+AGENTS.md
+/docs/*
+!/docs/current-architecture-and-next-steps.md
+!/docs/approval-execution.md
