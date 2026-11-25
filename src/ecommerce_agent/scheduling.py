@@ -14,6 +14,7 @@ from uuid import UUID, uuid4
 
 from psycopg.types.json import Jsonb
 
+from ecommerce_agent.config import ProjectConfig
 from ecommerce_agent.contracts import StoreSnapshot
 from ecommerce_agent.oversight import Oversight, audit
 from ecommerce_agent.persistence import ServiceError, transaction
@@ -119,6 +120,7 @@ class InvestigationContext:
     request: dict
     snapshot: StoreSnapshot
     calendar_origin: object
+    config: ProjectConfig
     observed_sales: list
     usage: dict
     deadline: float
@@ -245,7 +247,9 @@ class InvestigationWorker:
         with transaction(self.dsn) as conn:
             row = self._owned(conn, run_id, lease_owner)
             store = conn.execute(
-                "SELECT snapshot,calendar_origin FROM app.stores WHERE tenant_id=%s",
+                "SELECT s.snapshot,s.calendar_origin,p.config FROM app.stores s "
+                "JOIN app.policy_versions p ON p.tenant_id=s.tenant_id "
+                "AND p.version=s.policy_version WHERE s.tenant_id=%s",
                 (self.tenant,),
             ).fetchone()
             snapshot = StoreSnapshot.model_validate(store["snapshot"])
@@ -267,6 +271,7 @@ class InvestigationWorker:
             request=row["request"],
             snapshot=snapshot,
             calendar_origin=store["calendar_origin"],
+            config=ProjectConfig.model_validate(store["config"]),
             observed_sales=sales,
             usage=dict(row["usage"]),
             deadline=time.monotonic() + self.wall_seconds,
