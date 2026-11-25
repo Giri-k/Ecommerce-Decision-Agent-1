@@ -1,35 +1,22 @@
 """Phase 3A exit gate: shared monitor detectors and durable alerts on real PostgreSQL."""
 
-from dataclasses import replace
 from datetime import date, timedelta
-from uuid import uuid4
 
 import psycopg
 import pytest
 from fastapi.testclient import TestClient
-from psycopg import sql
-from psycopg.conninfo import conninfo_to_dict
 from psycopg.types.json import Jsonb
 
 from ecommerce_agent.api import create_app
-from ecommerce_agent.config import load_config
 from ecommerce_agent.contracts import PurchaseOrder, StoreSnapshot
-from ecommerce_agent.durable_simulator import checkpoint
 from ecommerce_agent.fixtures import build_fixture
 from ecommerce_agent.forecasting import Forecast, ForecastPoint, SalesHistory, SalesRecord
-from ecommerce_agent.local_database import start_database
-from ecommerce_agent.local_setup import seed_identities
 from ecommerce_agent.monitoring import Monitor, covered_days, detect
 from ecommerce_agent.oversight import Oversight
 from ecommerce_agent.persistence import (
     ServiceError,
-    create_database,
-    migrate,
-    provision_runtime_roles,
-    seed_store,
     transaction,
 )
-from ecommerce_agent.simulation import Initialization, Scenario, Simulator, World
 
 ORIGIN = date(2026, 1, 1)
 FAST, STANDARD = "SYNTH-001", "SYNTH-002"  # Three-day and seven-day suppliers.
@@ -199,47 +186,6 @@ def base_history(skus, rate=1):
         for offset in range(1, 57)
     ]
     return SalesHistory("test", tuple(records), "test-history")
-
-
-@pytest.fixture(scope="module")
-def postgres_server():
-    return start_database()
-
-
-@pytest.fixture
-def env(postgres_server, tmp_path):
-    database = "ec_test_" + uuid4().hex[:12]
-    admin = create_database(postgres_server, database)
-    migrate(admin)
-    config = load_config()
-    for tenant in ("store-a", "store-b"):
-        snap = snapshot(stock=20).model_copy(update={"tenant_id": tenant})
-        world = World(
-            Scenario(scenario_id=f"test-{tenant}"),
-            ORIGIN,
-            {p.sku: (1.0,) * 7 for p in snap.products},
-            {p.sku: -1.0 for p in snap.products},
-        )
-        initial = Initialization(snap, world)
-        engine = Simulator(initial, config)
-        seed_store(admin, replace(initial, snapshot=engine.observe()), config, checkpoint(engine))
-    services = provision_runtime_roles(admin, ["store-a", "store-b"], tmp_path / "services.json")
-    tokens = seed_identities(admin)
-    skus = [p.sku for p in snapshot().products]
-    try:
-        yield {
-            "admin": admin,
-            "services": services,
-            "tokens": tokens,
-            "history": base_history(skus),
-        }
-    finally:
-        with psycopg.connect(postgres_server, autocommit=True) as conn:
-            conn.execute(sql.SQL("DROP DATABASE {} WITH (FORCE)").format(sql.Identifier(database)))
-            for dsn in services.values():
-                conn.execute(
-                    sql.SQL("DROP ROLE {}").format(sql.Identifier(conninfo_to_dict(dsn)["user"]))
-                )
 
 
 def publish(env, snap, tenant="store-a"):

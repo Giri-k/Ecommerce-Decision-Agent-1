@@ -68,6 +68,13 @@ def idempotent(conn, tenant, actor, operation, key, request, handler):
     return response
 
 
+def review_gate(conn, tenant):
+    """Proactive stores may not advance while today's review is missing or unfinished."""
+    reason = conn.execute("SELECT app.review_blocker(%s) AS reason", (tenant,)).fetchone()
+    if reason["reason"]:
+        raise ServiceError("review_pending", reason["reason"])
+
+
 def check_payload(payload, snapshot, config):
     if payload.tenant_id != snapshot.tenant_id:
         raise ServiceError("forbidden", "proposal scope mismatch", 403)
@@ -235,7 +242,7 @@ class Oversight:
                     conn.execute(
                         (
                             "UPDATE app.investigations SET state='PROPOSED' WHERE te"
-                            "nant_id=%s AND run_id=%s"
+                            "nant_id=%s AND run_id=%s AND state<>'LEASED'"
                         ),
                         (tenant, run_id),
                     )
@@ -376,6 +383,7 @@ class Oversight:
                     raise ServiceError("disabled", "sandbox mutations are paused")
                 if store["snapshot"]["snapshot_version"] != snapshot_version:
                     raise ServiceError("stale", "stale snapshot")
+                review_gate(conn, tenant)
                 job_id = uuid4()
                 conn.execute(
                     (

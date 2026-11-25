@@ -71,6 +71,13 @@ def main() -> None:
     monitor_parser.add_argument("--tenant", default="store-a")
     monitor_parser.add_argument("--credential-file", type=Path, required=True)
     monitor_parser.add_argument("--data-dir", type=Path, default=Path("var/data/m5"))
+    for name, text in (
+        ("schedule", "Queue today's scheduled review if it is due"),
+        ("investigate-worker", "Claim and run at most one investigation job"),
+    ):
+        job_parser = commands.add_parser(name, help=text)
+        job_parser.add_argument("--tenant", default="store-a")
+        job_parser.add_argument("--credential-file", type=Path, required=True)
     data_parser = commands.add_parser(
         "prepare-data", help="Curate ten M5 products using training data"
     )
@@ -138,6 +145,15 @@ def main() -> None:
             "thresholds": thresholds_record(),
             "model_calls": 0,
         }
+    elif args.command in {"schedule", "investigate-worker"}:
+        from ecommerce_agent.scheduling import InvestigationWorker, Scheduler
+
+        dsn = json.loads(args.credential_file.read_text())["dsn"]
+        if args.command == "schedule":
+            result = Scheduler(dsn, args.tenant).run_once()
+        else:
+            outcome = InvestigationWorker(dsn, args.tenant).run_once()
+            result = {"status": "idle" if outcome is None else "completed", "result": outcome}
     elif args.command == "seed":
         result = write_fixture(args.output, args.seed, load_config(args.config))
     elif args.command == "prepare-data":
