@@ -422,3 +422,30 @@ class Oversight:
             if not row:
                 raise ServiceError("forbidden", "receipt access denied", 403)
             return row["receipt"]
+
+    def list_alerts(self, token, tenant, status=None):
+        if status not in {None, "OPEN", "RESOLVED"}:
+            raise ServiceError("status", "status must be OPEN or RESOLVED", 422)
+        with transaction(self.dsn, token) as conn:
+            require_member(conn, tenant)
+            alerts = conn.execute(
+                "SELECT alert_id,alert_type,sku,order_id,severity,status,evidence,"
+                "detector_version,opened_day,last_day,resolved_day,last_snapshot_version "
+                "FROM app.alerts WHERE tenant_id=%s AND (%s::text IS NULL OR status=%s) "
+                "ORDER BY status,opened_day,alert_type,sku",
+                (tenant, status, status),
+            ).fetchall()
+            events = conn.execute(
+                "SELECT alert_id,kind,day,snapshot_version,severity FROM app.alert_events "
+                "WHERE tenant_id=%s ORDER BY created_at",
+                (tenant,),
+            ).fetchall()
+            history = {}
+            for event in events:
+                history.setdefault(event["alert_id"], []).append(
+                    {k: v for k, v in event.items() if k != "alert_id"}
+                )
+            return {
+                "tenant_id": tenant,
+                "alerts": [a | {"events": history.get(a["alert_id"], [])} for a in alerts],
+            }

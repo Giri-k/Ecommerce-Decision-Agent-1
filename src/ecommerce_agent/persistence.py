@@ -16,7 +16,7 @@ from psycopg.types.json import Jsonb
 
 from ecommerce_agent.local_database import private_json
 
-GROUPS = ("ec_owner", "ec_api", "ec_agent", "ec_executor", "ec_simulator")
+GROUPS = ("ec_owner", "ec_api", "ec_agent", "ec_executor", "ec_simulator", "ec_monitor")
 
 
 class ServiceError(Exception):
@@ -134,7 +134,7 @@ def provision_runtime_roles(admin_dsn, tenants, credential_path: Path):
         roles += [
             (f"{kind}_{index}", f"ec_{kind}", tenant)
             for index, tenant in enumerate(tenants)
-            for kind in ("agent", "executor", "simulator")
+            for kind in ("agent", "executor", "simulator", "monitor")
         ]
         for label, group, tenant in roles:
             name = f"ec_{suffix}_{label}"

@@ -65,6 +65,12 @@ def main() -> None:
     worker_parser.add_argument("--kind", choices=["executor", "simulator"], required=True)
     worker_parser.add_argument("--tenant", default="store-a")
     worker_parser.add_argument("--credential-file", type=Path, required=True)
+    monitor_parser = commands.add_parser(
+        "monitor", help="Process pending public observations into durable alerts"
+    )
+    monitor_parser.add_argument("--tenant", default="store-a")
+    monitor_parser.add_argument("--credential-file", type=Path, required=True)
+    monitor_parser.add_argument("--data-dir", type=Path, default=Path("var/data/m5"))
     data_parser = commands.add_parser(
         "prepare-data", help="Curate ten M5 products using training data"
     )
@@ -119,6 +125,19 @@ def main() -> None:
         credential = json.loads(args.credential_file.read_text())
         receipt = Worker(credential["dsn"], args.tenant, args.kind).run_once()
         result = {"status": "idle" if receipt is None else "completed", "result": receipt}
+    elif args.command == "monitor":
+        from ecommerce_agent.forecasting import load_history
+        from ecommerce_agent.monitoring import Monitor, thresholds_record
+
+        credential = json.loads(args.credential_file.read_text())
+        history = load_history(args.data_dir, tenant_id=args.tenant)
+        processed = Monitor(credential["dsn"], args.tenant, history).run_pending()
+        result = {
+            "status": "idle" if not processed else "processed",
+            "observations": processed,
+            "thresholds": thresholds_record(),
+            "model_calls": 0,
+        }
     elif args.command == "seed":
         result = write_fixture(args.output, args.seed, load_config(args.config))
     elif args.command == "prepare-data":

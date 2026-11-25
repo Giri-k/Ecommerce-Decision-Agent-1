@@ -4,7 +4,7 @@ RUFF := .venv/bin/ruff
 export UV_CACHE_DIR ?= $(CURDIR)/.cache/uv
 M5_SOURCE_DIR ?= data/raw
 
-.PHONY: bootstrap check lint format test smoke seed budget data simulate forecast-validation controls api db-up db-down local-setup local-db-stop approval-demo executor simulator-worker
+.PHONY: bootstrap check lint format test smoke seed budget data simulate forecast-validation controls api db-up db-down local-setup local-db-stop approval-demo executor simulator-worker monitor
 
 bootstrap:
 	$(UV) sync --frozen
@@ -59,6 +59,9 @@ executor:
 
 simulator-worker:
 	$(PYTHON) -m ecommerce_agent.cli worker --kind simulator --credential-file var/runtime/simulator_0.json
+
+monitor:
+	$(PYTHON) -m ecommerce_agent.cli monitor --credential-file var/runtime/monitor_0.json
 
 db-up:
 	docker compose --env-file .env -f infra/compose.yaml up -d --wait
